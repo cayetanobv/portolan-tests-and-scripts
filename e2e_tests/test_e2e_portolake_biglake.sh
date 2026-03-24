@@ -30,9 +30,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BASE_DIR="/home/cayetano/dev_projs/portolan"
-CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalog-portolake-biglake}"
+CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog-portolake-biglake}"
 GCS_BUCKET="${2:-gs://cayetanobv-portolake-iceberg-biglake}"
-RAW_DATA_DIR="$SCRIPT_DIR/test-catalog-raw-data"
+RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
 PORTOLAKE_DIR="$BASE_DIR/portolake"
 PORTOLAN_CLI_DIR="$BASE_DIR/portolan-cli"
 

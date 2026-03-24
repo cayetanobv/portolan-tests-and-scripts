@@ -20,9 +20,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BASE_DIR="/home/cayetano/dev_projs/portolan"
-CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalog}"
+CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog}"
 GCS_BUCKET="${2:-gs://cayetanobv-portolan-catalog}"
-RAW_DATA_DIR="$SCRIPT_DIR/test-catalog-raw-data"
+RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
 PORTOLAN="uv run --project $BASE_DIR/portolan-cli portolan"
 PYTHON="uv run --project $BASE_DIR/portolan-cli python3"
 
