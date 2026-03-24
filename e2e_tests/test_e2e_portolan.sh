@@ -18,11 +18,13 @@
 
 set -euo pipefail
 
-CATALOG_DIR="${1:-/home/cayetano/dev_projs/portolan/test-catalog}"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BASE_DIR="/home/cayetano/dev_projs/portolan"
+CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalog}"
 GCS_BUCKET="${2:-gs://cayetanobv-portolan-catalog}"
-RAW_DATA_DIR="/home/cayetano/dev_projs/portolan/test-catalog-raw-data"
-PORTOLAN="uv run --project /home/cayetano/dev_projs/portolan/portolan-cli portolan"
-PYTHON="uv run --project /home/cayetano/dev_projs/portolan/portolan-cli python3"
+RAW_DATA_DIR="$SCRIPT_DIR/test-catalog-raw-data"
+PORTOLAN="uv run --project $BASE_DIR/portolan-cli portolan"
+PYTHON="uv run --project $BASE_DIR/portolan-cli python3"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preflight checks
