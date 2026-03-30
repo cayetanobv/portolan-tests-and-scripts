@@ -70,6 +70,25 @@ done
 
 echo "Step 0: Setting up environment..."
 
+# Guard against ~/.pyiceberg.yaml left over from BigLake tests.
+# If present with a non-SQLite catalog type, it overrides the local SQLite
+# defaults in portolake's create_catalog(), causing this test to silently
+# talk to a remote REST catalog instead of creating a local iceberg.db.
+PYICEBERG_CONFIG="$HOME/.pyiceberg.yaml"
+PYICEBERG_BACKUP=""
+if [ -f "$PYICEBERG_CONFIG" ]; then
+    PYICEBERG_BACKUP="$PYICEBERG_CONFIG.bak.$$"
+    mv "$PYICEBERG_CONFIG" "$PYICEBERG_BACKUP"
+    echo "  Moved $PYICEBERG_CONFIG aside (restored on exit)"
+fi
+
+restore_pyiceberg_config() {
+    if [ -n "$PYICEBERG_BACKUP" ] && [ -f "$PYICEBERG_BACKUP" ]; then
+        mv "$PYICEBERG_BACKUP" "$PYICEBERG_CONFIG"
+    fi
+}
+trap restore_pyiceberg_config EXIT
+
 # Sync portolake dependencies first
 cd "$PORTOLAKE_DIR"
 uv sync --all-extras --quiet
@@ -509,8 +528,9 @@ else
             if echo "$GCS_FILES" | grep -q ".parquet"; then
                 echo "  OK: Data files uploaded"
             else
-                echo "  FAIL: No .parquet files on GCS"
-                ERRORS=$((ERRORS + 1))
+                # SQLite backend keeps data in local warehouse (file:///).
+                # Only STAC metadata (JSON) is uploaded — parquet absence is expected.
+                echo "  INFO: No .parquet files on GCS (expected for SQLite — data stays local)"
             fi
         else
             echo "  FAIL: No files found on GCS after add with remote"

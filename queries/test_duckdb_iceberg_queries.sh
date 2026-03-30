@@ -2,7 +2,7 @@
 # DuckDB queries against the portolake Iceberg catalog on BigLake/GCS.
 #
 # Tests that the Iceberg tables are queryable via DuckDB iceberg_scan(),
-# including spatial partition pruning and time travel.
+# including spatial partition pruning and time travel (15 queries).
 #
 # Auth: Uses OAuth2 bearer token from gcloud ADC (not HMAC).
 #       credential_chain picks up ~/.aws/credentials if present,
@@ -85,6 +85,10 @@ run_query() {
     local label="$1"
     local sql="$2"
     echo "--- ${label} ---"
+    echo ""
+    # Print the SQL query (strip leading whitespace, skip empty lines at start)
+    echo "${sql}" | sed '/./,$!d' | sed 's/^/  /'
+    echo ""
     if ! duckdb -c "${DUCKDB_INIT} ${sql}" 2>&1; then
         echo "  ERROR: query failed"
         ERRORS=$((ERRORS + 1))
@@ -209,12 +213,103 @@ LIMIT 10;
 "
 
 # ---------------------------------------------------------------------------
-# 11. Time travel — agriculture has 2 snapshots
+# 11. Time travel — list all snapshots with metadata
 # ---------------------------------------------------------------------------
 run_query "11. Agriculture — list snapshots (time travel)" "
 
-SELECT *
-FROM iceberg_snapshots('${AG_TABLE}');
+SELECT
+    snapshot_id,
+    timestamp_ms AS snapshot_time,
+    sequence_number
+FROM iceberg_snapshots('${AG_TABLE}')
+ORDER BY timestamp_ms;
+"
+
+# ---------------------------------------------------------------------------
+# 11b–d. Time travel queries using snapshot_from_id
+#
+#   DuckDB's iceberg_scan() supports snapshot_from_id (UBIGINT) to query
+#   a specific historical version. This is distinct from the 'version'
+#   parameter which maps to metadata file version numbers.
+#
+#   We dynamically fetch the first and last snapshot IDs from the table.
+# ---------------------------------------------------------------------------
+
+FIRST_SNAP=$(duckdb -csv -noheader -c "${DUCKDB_INIT}
+SELECT snapshot_id FROM iceberg_snapshots('${AG_TABLE}')
+ORDER BY timestamp_ms ASC LIMIT 1;" 2>/dev/null | tail -1)
+
+LAST_SNAP=$(duckdb -csv -noheader -c "${DUCKDB_INIT}
+SELECT snapshot_id FROM iceberg_snapshots('${AG_TABLE}')
+ORDER BY timestamp_ms DESC LIMIT 1;" 2>/dev/null | tail -1)
+
+echo "  First snapshot: ${FIRST_SNAP}"
+echo "  Last snapshot:  ${LAST_SNAP}"
+echo ""
+
+# ---------------------------------------------------------------------------
+# 11b. Time travel — compare first snapshot vs current
+#      Proves copy-on-write: old data files are still readable.
+# ---------------------------------------------------------------------------
+run_query "11b. Agriculture — row count at first snapshot (time travel)" "
+
+SELECT count(*) AS rows,
+       count(DISTINCT geohash_3) AS partitions,
+       round(min(bbox_xmin), 2) AS west,
+       round(max(bbox_xmax), 2) AS east
+FROM iceberg_scan('${AG_TABLE}', allow_moved_paths := true,
+    snapshot_from_id := ${FIRST_SNAP});
+"
+
+run_query "11b2. Agriculture — row count at current snapshot (compare with 11b)" "
+
+SELECT count(*) AS rows,
+       count(DISTINCT geohash_3) AS partitions,
+       round(min(bbox_xmin), 2) AS west,
+       round(max(bbox_xmax), 2) AS east
+FROM iceberg_scan('${AG_TABLE}', allow_moved_paths := true,
+    snapshot_from_id := ${LAST_SNAP});
+"
+
+# ---------------------------------------------------------------------------
+# 11c. Time travel — sample rows from the first snapshot
+#      Shows actual data from the oldest version.
+# ---------------------------------------------------------------------------
+run_query "11c. Agriculture — sample rows from first snapshot" "
+
+SELECT taotlusaas, pollu_id, pindala_ha, EC_hcat_n, geohash_3
+FROM iceberg_scan('${AG_TABLE}', allow_moved_paths := true,
+    snapshot_from_id := ${FIRST_SNAP})
+LIMIT 5;
+"
+
+# ---------------------------------------------------------------------------
+# 11d. Time travel — partition distribution: first vs current
+#      Compares geohash row counts across versions. With identical source
+#      data re-published, rows per partition grow proportionally.
+# ---------------------------------------------------------------------------
+run_query "11d. Agriculture — partition distribution: first vs current" "
+
+WITH first_ver AS (
+    SELECT geohash_3, count(*) AS rows
+    FROM iceberg_scan('${AG_TABLE}', allow_moved_paths := true,
+        snapshot_from_id := ${FIRST_SNAP})
+    GROUP BY geohash_3
+),
+current_ver AS (
+    SELECT geohash_3, count(*) AS rows
+    FROM iceberg_scan('${AG_TABLE}', allow_moved_paths := true,
+        snapshot_from_id := ${LAST_SNAP})
+    GROUP BY geohash_3
+)
+SELECT
+    coalesce(f.geohash_3, c.geohash_3) AS geohash,
+    f.rows AS first_rows,
+    c.rows AS current_rows,
+    c.rows - f.rows AS diff
+FROM first_ver f
+FULL OUTER JOIN current_ver c ON f.geohash_3 = c.geohash_3
+ORDER BY geohash;
 "
 
 # ---------------------------------------------------------------------------
