@@ -641,10 +641,89 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 17: Verify push/pull behavior
+# Step 17: Test version CLI commands (portolan version current/list/rollback/prune)
 # -----------------------------------------------------------------------------
 
-echo "Step 17: Verifying push/pull behavior..."
+echo "Step 17: Testing version CLI commands..."
+FIRST_COL="${ADDED_COLLECTIONS[0]}"
+
+# version current
+CURRENT_OUTPUT=$($PORTOLAN version current "$FIRST_COL" 2>&1)
+if echo "$CURRENT_OUTPUT" | grep -q "1.1.0"; then
+    echo "  OK: version current shows 1.1.0"
+else
+    echo "  FAIL: version current did not show 1.1.0"
+    echo "  Output: $CURRENT_OUTPUT"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# version list
+LIST_OUTPUT=$($PORTOLAN version list "$FIRST_COL" 2>&1)
+if echo "$LIST_OUTPUT" | grep -q "1.0.0" && echo "$LIST_OUTPUT" | grep -q "1.1.0"; then
+    echo "  OK: version list shows both 1.0.0 and 1.1.0"
+else
+    echo "  FAIL: version list did not show expected versions"
+    echo "  Output: $LIST_OUTPUT"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# version list --json
+LIST_JSON=$($PORTOLAN version list "$FIRST_COL" --json 2>&1)
+if echo "$LIST_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['success']; assert len(d['data']['versions'])==2" 2>/dev/null; then
+    echo "  OK: version list --json returns valid JSON with 2 versions"
+else
+    echo "  FAIL: version list --json output invalid"
+    echo "  Output: $LIST_JSON"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# version rollback (native Iceberg — sets current snapshot pointer)
+ROLLBACK_OUTPUT=$($PORTOLAN version rollback "$FIRST_COL" 1.0.0 2>&1)
+if echo "$ROLLBACK_OUTPUT" | grep -q "Rolled back.*1.0.0"; then
+    echo "  OK: version rollback to 1.0.0 succeeded"
+else
+    echo "  FAIL: version rollback did not succeed"
+    echo "  Output: $ROLLBACK_OUTPUT"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# Verify current is now 1.0.0
+CURRENT_AFTER=$($PORTOLAN version current "$FIRST_COL" 2>&1)
+if echo "$CURRENT_AFTER" | grep -q "1.0.0"; then
+    echo "  OK: current version is 1.0.0 after rollback"
+else
+    echo "  FAIL: current version is not 1.0.0 after rollback"
+    echo "  Output: $CURRENT_AFTER"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# Restore to 1.1.0 for remaining tests
+$PORTOLAN version rollback "$FIRST_COL" 1.1.0 >/dev/null 2>&1
+
+# version prune --dry-run
+PRUNE_OUTPUT=$($PORTOLAN version prune "$FIRST_COL" --keep 1 --dry-run 2>&1)
+if echo "$PRUNE_OUTPUT" | grep -q "Would prune"; then
+    echo "  OK: version prune --dry-run shows prunable versions"
+else
+    echo "  FAIL: version prune --dry-run did not report prunable versions"
+    echo "  Output: $PRUNE_OUTPUT"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# Verify file backend is rejected
+REJECT_OUTPUT=$($PORTOLAN version list "$FIRST_COL" --catalog /tmp 2>&1 || true)
+if echo "$REJECT_OUTPUT" | grep -qi "requires.*iceberg"; then
+    echo "  OK: version commands correctly reject non-iceberg backend"
+else
+    echo "  SKIP: could not test backend rejection (no file-backend catalog at /tmp)"
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Step 18: Verify push/pull behavior
+# -----------------------------------------------------------------------------
+
+echo "Step 18: Verifying push/pull behavior..."
 
 # Push should say "not needed" (add already uploads when remote is configured)
 PUSH_OUTPUT=$($PORTOLAN push "$GCS_BUCKET" --collection "${ADDED_COLLECTIONS[0]}" 2>&1 || true)
@@ -667,10 +746,10 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 18: Validate STAC catalog
+# Step 19: Validate STAC catalog
 # -----------------------------------------------------------------------------
 
-echo "Step 18: Validating STAC catalog..."
+echo "Step 19: Validating STAC catalog..."
 $PYTHON -c "
 import pystac, os
 
@@ -702,10 +781,10 @@ print(f'  OK: {count} items validated (custom extensions skipped for schema fetc
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 19: Make bucket public with CORS support
+# Step 20: Make bucket public with CORS support
 # -----------------------------------------------------------------------------
 
-echo "Step 19: Making bucket public with CORS support..."
+echo "Step 20: Making bucket public with CORS support..."
 
 # Remove public access prevention
 gcloud storage buckets update "$GCS_BUCKET" --no-public-access-prevention 2>&1 || true
@@ -791,6 +870,7 @@ echo "    - Spatial columns (geohash + bbox)"
 echo "    - STAC extensions (table:* + iceberg:*)"
 echo "    - Static GeoParquet export"
 echo "    - Time travel / version history"
+echo "    - Version CLI commands (current, list, rollback, prune)"
 echo "    - Public bucket + CORS"
 echo ""
 echo "  Browse: $STAC_BROWSER_URL"
