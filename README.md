@@ -5,9 +5,39 @@ End-to-end tests and query scripts for [Portolan CLI](https://github.com/portola
 ## Structure
 
 ```
-e2e_tests/      End-to-end test scripts
-queries/        Iceberg query scripts (BigQuery, DuckDB)
+e2e_tests/          End-to-end test scripts
+queries/            Iceberg query scripts (BigQuery, DuckDB)
+test-catalogs/      Test catalog data (git-ignored, local only)
+.env.example        Environment configuration template
 ```
+
+## Setup
+
+1. Clone the repo and copy the environment template:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` with your values:
+
+   | Variable | Description |
+   | --- | --- |
+   | `BASE_DIR` | Path to the parent directory containing `portolan-cli` and `portolake` repos |
+   | `GCS_BUCKET_PORTOLAN` | GCS bucket for the core portolan E2E test |
+   | `GCS_BUCKET_PORTOLAKE_SQLITE` | GCS bucket for the SQLite-backend E2E test |
+   | `GCS_BUCKET_PORTOLAKE_BIGLAKE` | GCS bucket for the BigLake E2E test |
+   | `GCS_BUCKET_QUERIES` | GCS bucket for DuckDB / BigQuery query tests |
+   | `STAC_BROWSER_BASE_URL` | Base URL for the STAC Browser instance |
+
+   All scripts also accept CLI arguments and fall back to sensible defaults if `.env` is absent.
+
+3. Authenticate with GCP:
+
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   ```
 
 ## E2E Tests
 
@@ -17,6 +47,14 @@ queries/        Iceberg query scripts (BigQuery, DuckDB)
 | `test_e2e_portolake_biglake.sh` | Portolake with BigLake Metastore + GCS |
 | `test_e2e_portolake_sqlite.sh` | Portolake with local SQLite catalog |
 
+```bash
+# Run with defaults from .env
+./e2e_tests/test_e2e_portolan.sh
+
+# Override catalog dir and bucket via CLI args
+./e2e_tests/test_e2e_portolan.sh /path/to/catalog gs://my-bucket
+```
+
 ## Queries
 
 | Script | Description |
@@ -24,9 +62,20 @@ queries/        Iceberg query scripts (BigQuery, DuckDB)
 | `test_bigquery_iceberg_queries.sh` | Query Iceberg tables via BigQuery |
 | `test_duckdb_iceberg_queries.sh` | Query Iceberg tables via DuckDB |
 
+```bash
+# Run with defaults from .env
+./queries/test_duckdb_iceberg_queries.sh
+
+# Override bucket via CLI arg
+./queries/test_duckdb_iceberg_queries.sh gs://my-bucket
+```
+
 ## Prerequisites
 
 - Python 3.11+
-- [Portolan CLI](https://github.com/portolan-sdi/portolan-cli) and [Portolake](https://github.com/portolan-sdi/portolake) installed
-- For BigLake tests: GCP project with BigLake API enabled, `gcloud` authenticated
-- For DuckDB tests: DuckDB CLI with iceberg, httpfs, and spatial extensions
+- [uv](https://github.com/astral-sh/uv) package manager
+- [Portolan CLI](https://github.com/portolan-sdi/portolan-cli) and [Portolake](https://github.com/portolan-sdi/portolake) checked out locally
+- `gcloud` CLI authenticated (`gcloud auth login` + `application-default login`)
+- For BigLake tests: GCP project with BigLake API enabled
+- For DuckDB tests: DuckDB CLI >= 1.5.0 with iceberg, httpfs, and spatial extensions
+- For BigQuery tests: `bq` CLI available
