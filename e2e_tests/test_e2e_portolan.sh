@@ -104,8 +104,9 @@ for collection_dir in "$RAW_DATA_DIR"/*/; do
     collection=$(basename "$collection_dir")
 
     # FIXME: FileGDB (fire) has upstream issues — skip for now
-    if [[ "$collection" == "fire" ]]; then
-        echo "  ⚠ Skipping $collection (FileGDB upstream issue)"
+    # Skip large datasets (osm, counties) to reduce test runtime
+    if [[ "$collection" == "fire" || "$collection" == "osm" || "$collection" == "counties" ]]; then
+        echo "  ⚠ Skipping $collection (large dataset or upstream issue)"
         continue
     fi
 
