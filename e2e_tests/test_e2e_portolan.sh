@@ -105,16 +105,16 @@ for collection_dir in "$RAW_DATA_DIR"/*/; do
 
     # FIXME: FileGDB (fire) has upstream issues — skip for now
     # Skip large datasets (osm, counties) to reduce test runtime
-    # Skip elevation (COG/raster) — add silently skips TIF files, leaving no versions.json
-    if [[ "$collection" == "fire" || "$collection" == "osm" || "$collection" == "counties" || "$collection" == "elevation" ]]; then
-        echo "  ⚠ Skipping $collection (large dataset, raster, or upstream issue)"
+    if [[ "$collection" == "fire" || "$collection" == "osm" || "$collection" == "counties" ]]; then
+        echo "  ⚠ Skipping $collection (large dataset or upstream issue)"
         continue
     fi
 
     mkdir -p "$CATALOG_DIR/$collection"
 
-    # Copy files flat into collection dir (not item subdirectories).
-    # portolan add will create item dirs and detect collection IDs correctly.
+    # Copy files into collection dir.
+    # Raster files (TIF) need a subdirectory — portolan add requires
+    # files to be inside an item folder within the collection.
     for file in "$collection_dir"*; do
         # Skip directories (e.g. extracted shapefiles)
         [ -d "$file" ] && continue
@@ -123,6 +123,11 @@ for collection_dir in "$RAW_DATA_DIR"/*/; do
         if [[ "$file" == *.zip ]]; then
             echo "  → Extracting $filename into $collection/"
             unzip -qo "$file" -d "$CATALOG_DIR/$collection/"
+        elif [[ "$file" == *.tif || "$file" == *.tiff ]]; then
+            # Raster: put in item subdirectory (required by portolan add)
+            item_name="${filename%.*}"
+            mkdir -p "$CATALOG_DIR/$collection/$item_name"
+            cp "$file" "$CATALOG_DIR/$collection/$item_name/"
         else
             cp "$file" "$CATALOG_DIR/$collection/"
         fi
