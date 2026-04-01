@@ -23,9 +23,16 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_DIR="/home/cayetano/dev_projs/portolan"
+
+# Load .env if present (provides BASE_DIR, GCS_BUCKET_* defaults)
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # shellcheck disable=SC1091
+    set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
+
+BASE_DIR="${BASE_DIR:-/home/cayetano/dev_projs/portolan}"
 CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog-portolake-sqlite}"
-GCS_BUCKET="${2:-gs://cayetanobv-portolake-iceberg-sqlite}"
+GCS_BUCKET="${2:-${GCS_BUCKET_PORTOLAKE_SQLITE:-gs://cayetanobv-portolake-iceberg-sqlite}}"
 RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
 PORTOLAKE_DIR="$BASE_DIR/portolake"
 PORTOLAN_CLI_DIR="$BASE_DIR/portolan-cli"

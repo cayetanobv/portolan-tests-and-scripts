@@ -29,9 +29,16 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_DIR="/home/cayetano/dev_projs/portolan"
+
+# Load .env if present (provides BASE_DIR, GCS_BUCKET_* defaults)
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # shellcheck disable=SC1091
+    set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
+
+BASE_DIR="${BASE_DIR:-/home/cayetano/dev_projs/portolan}"
 CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog-portolake-biglake2}"
-GCS_BUCKET="${2:-gs://cayetanobv-portolake-iceberg-biglake}"
+GCS_BUCKET="${2:-${GCS_BUCKET_PORTOLAKE_BIGLAKE:-gs://cayetanobv-portolake-iceberg-biglake}}"
 RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
 PORTOLAKE_DIR="$BASE_DIR/portolake"
 PORTOLAN_CLI_DIR="$BASE_DIR/portolan-cli"
@@ -742,7 +749,7 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-STAC_BROWSER_URL="https://cayetanobv.github.io/iceberg-stac-browser/#/external/${GCS_HOST}/${GCS_BUCKET_NAME}/catalog.json"
+STAC_BROWSER_URL="${STAC_BROWSER_BASE_URL:-https://cayetanobv.github.io/iceberg-stac-browser}/#/external/${GCS_HOST}/${GCS_BUCKET_NAME}/catalog.json"
 echo ""
 echo "  STAC Catalog:  $CATALOG_URL"
 echo "  STAC Browser:  $STAC_BROWSER_URL"

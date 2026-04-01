@@ -19,9 +19,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_DIR="/home/cayetano/dev_projs/portolan"
+
+# Load .env if present (provides BASE_DIR, GCS_BUCKET_* defaults)
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # shellcheck disable=SC1091
+    set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
+
+BASE_DIR="${BASE_DIR:-/home/cayetano/dev_projs/portolan}"
 CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog}"
-GCS_BUCKET="${2:-gs://cayetanobv-portolan-catalog}"
+GCS_BUCKET="${2:-${GCS_BUCKET_PORTOLAN:-gs://cayetanobv-portolan-catalog}}"
 RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
 PORTOLAN="uv run --project $BASE_DIR/portolan-cli portolan"
 PYTHON="uv run --project $BASE_DIR/portolan-cli python3"

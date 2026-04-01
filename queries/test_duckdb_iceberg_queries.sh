@@ -37,7 +37,15 @@
 
 set -euo pipefail
 
-BUCKET="${1:-gs://test-catalog-portolake-biglake}"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Load .env if present (provides GCS_BUCKET_QUERIES default)
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # shellcheck disable=SC1091
+    set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
+
+BUCKET="${1:-${GCS_BUCKET_QUERIES:-gs://test-catalog-portolake-biglake}}"
 
 echo "=== DuckDB Iceberg Query Tests ==="
 echo ""
