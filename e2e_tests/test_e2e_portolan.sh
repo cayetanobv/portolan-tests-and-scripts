@@ -48,6 +48,25 @@ echo "→ Raw data dir: $RAW_DATA_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 0: Guard against ~/.pyiceberg.yaml (core test uses file backend only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+PYICEBERG_CONFIG="$HOME/.pyiceberg.yaml"
+PYICEBERG_BACKUP=""
+if [ -f "$PYICEBERG_CONFIG" ]; then
+    PYICEBERG_BACKUP="$PYICEBERG_CONFIG.bak.$$"
+    mv "$PYICEBERG_CONFIG" "$PYICEBERG_BACKUP"
+    echo "→ Moved $PYICEBERG_CONFIG aside (restored on exit)"
+fi
+
+restore_pyiceberg_config() {
+    if [ -n "$PYICEBERG_BACKUP" ] && [ -f "$PYICEBERG_BACKUP" ]; then
+        mv "$PYICEBERG_BACKUP" "$PYICEBERG_CONFIG"
+    fi
+}
+trap restore_pyiceberg_config EXIT
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 1: Clean GCS bucket
 # ─────────────────────────────────────────────────────────────────────────────
 
