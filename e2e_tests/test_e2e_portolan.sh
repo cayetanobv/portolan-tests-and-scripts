@@ -105,8 +105,9 @@ for collection_dir in "$RAW_DATA_DIR"/*/; do
 
     # FIXME: FileGDB (fire) has upstream issues — skip for now
     # Skip large datasets (osm, counties) to reduce test runtime
-    if [[ "$collection" == "fire" || "$collection" == "osm" || "$collection" == "counties" ]]; then
-        echo "  ⚠ Skipping $collection (large dataset or upstream issue)"
+    # Skip elevation (COG/raster) — add silently skips TIF files, leaving no versions.json
+    if [[ "$collection" == "fire" || "$collection" == "osm" || "$collection" == "counties" || "$collection" == "elevation" ]]; then
+        echo "  ⚠ Skipping $collection (large dataset, raster, or upstream issue)"
         continue
     fi
 
