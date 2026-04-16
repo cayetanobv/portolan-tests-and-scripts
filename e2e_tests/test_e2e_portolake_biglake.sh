@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end test for portolake Iceberg-native data management with BigLake.
+# End-to-end test for Iceberg-native data management with BigLake.
 #
 # Tests the full Iceberg-native pipeline including:
 #   - Data ingestion into Iceberg tables (not metadata-only)
@@ -9,7 +9,7 @@
 #   - Time travel / version history
 #
 # Architecture:
-#   BigLake Metastore (catalog) <- REST API -> PyIceberg <- portolake
+#   BigLake Metastore (catalog) <- REST API -> PyIceberg <- portolan-cli[iceberg]
 #   GCS bucket (warehouse)     <- gcsfs    -> PyIceberg
 #
 # Usage:
@@ -40,11 +40,10 @@ BASE_DIR="${BASE_DIR:-/home/cayetano/dev_projs/portolan}"
 CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog-portolake-biglake2}"
 GCS_BUCKET="${2:-${GCS_BUCKET_PORTOLAKE_BIGLAKE:-gs://cayetanobv-portolake-iceberg-biglake}}"
 RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
-PORTOLAKE_DIR="$BASE_DIR/portolake"
 PORTOLAN_CLI_DIR="$BASE_DIR/portolan-cli"
 
-PORTOLAN="uv run --project $PORTOLAKE_DIR portolan"
-PYTHON="uv run --project $PORTOLAKE_DIR python3"
+PORTOLAN="uv run --project $PORTOLAN_CLI_DIR portolan"
+PYTHON="uv run --project $PORTOLAN_CLI_DIR python3"
 
 # GCP settings
 GCP_PROJECT=$(gcloud config get-value project 2>/dev/null)
@@ -62,7 +61,7 @@ ERRORS=0
 # Preflight
 # -----------------------------------------------------------------------------
 
-echo "=== Portolake E2E Test (Iceberg-Native + BigLake) ==="
+echo "=== Iceberg Backend E2E Test (BigLake) ==="
 echo ""
 echo "  Catalog dir:        $CATALOG_DIR"
 echo "  GCS bucket:         $GCS_BUCKET"
@@ -90,29 +89,24 @@ done
 
 echo "Step 0: Setting up environment..."
 
-cd "$PORTOLAKE_DIR"
-uv sync --all-extras --quiet
-uv pip install --project "$PORTOLAKE_DIR" -e "$PORTOLAN_CLI_DIR" --quiet
+cd "$PORTOLAN_CLI_DIR"
+uv sync --extra iceberg --quiet
 
 # Verify gcsfs is available (needed for GCS warehouse)
 if $PYTHON -c "import gcsfs" 2>/dev/null; then
     echo "  OK: gcsfs available"
 else
     echo "  Installing gcsfs..."
-    uv pip install --project "$PORTOLAKE_DIR" "gcsfs>=2024.2.0" --quiet
+    uv pip install --project "$PORTOLAN_CLI_DIR" "gcsfs>=2024.2.0" --quiet
 fi
 
-# Verify plugin is discoverable
-BACKENDS=$($PYTHON -c "
-from importlib.metadata import entry_points
-eps = entry_points(group='portolan.backends')
-print(','.join(ep.name for ep in eps))
-")
-if [[ "$BACKENDS" != *"iceberg"* ]]; then
-    echo "FAIL: Iceberg backend not found in entry points (got: $BACKENDS)"
+# Verify iceberg backend is importable
+if $PYTHON -c "from portolan_cli.backends.iceberg import IcebergBackend" 2>/dev/null; then
+    echo "  OK: Iceberg backend importable"
+else
+    echo "FAIL: Iceberg backend not importable (is [iceberg] extra installed?)"
     exit 1
 fi
-echo "  OK: Iceberg backend discoverable"
 echo ""
 
 # -----------------------------------------------------------------------------
@@ -528,7 +522,7 @@ import pyarrow.parquet as pq
 catalog = load_catalog('portolake')
 tables = catalog.list_tables('portolake')
 
-from portolake.export import export_current_snapshot
+from portolan_cli.backends.iceberg.export import export_current_snapshot
 
 export_dir = Path('$EXPORT_DIR')
 

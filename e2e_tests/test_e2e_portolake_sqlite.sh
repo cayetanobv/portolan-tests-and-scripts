@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end test for portolake (Iceberg backend) features.
+# End-to-end test for the Iceberg backend (SQLite catalog).
 #
 # Tests the full workflow: init --backend iceberg → add → verify iceberg tables
 # → verify push is blocked → verify versions via backend.
@@ -13,7 +13,7 @@
 # Prerequisites:
 #   - Raw data in test-catalog-raw-data/{agriculture,boundaries}
 #   - GCS credentials configured (for bucket cleanup/verification)
-#   - Local dev versions of portolan-cli and portolake repos
+#   - Local dev version of portolan-cli repo (with [iceberg] extra)
 #
 
 set -euo pipefail
@@ -34,12 +34,11 @@ BASE_DIR="${BASE_DIR:-/home/cayetano/dev_projs/portolan}"
 CATALOG_DIR="${1:-$SCRIPT_DIR/test-catalogs/test-catalog-portolake-sqlite}"
 GCS_BUCKET="${2:-${GCS_BUCKET_PORTOLAKE_SQLITE:-gs://cayetanobv-portolake-iceberg-sqlite}}"
 RAW_DATA_DIR="$SCRIPT_DIR/test-catalogs/test-catalog-raw-data"
-PORTOLAKE_DIR="$BASE_DIR/portolake"
 PORTOLAN_CLI_DIR="$BASE_DIR/portolan-cli"
 
-# Use portolake's venv (has both portolake + portolan-cli)
-PORTOLAN="uv run --project $PORTOLAKE_DIR portolan"
-PYTHON="uv run --project $PORTOLAKE_DIR python3"
+# Use portolan-cli's venv (with [iceberg] extra)
+PORTOLAN="uv run --project $PORTOLAN_CLI_DIR portolan"
+PYTHON="uv run --project $PORTOLAN_CLI_DIR python3"
 
 # Only geoparquet-compatible collections (skip elevation/tif, fire/FileGDB)
 GEOPARQUET_COLLECTIONS=("agriculture" "boundaries")
@@ -50,12 +49,11 @@ ERRORS=0
 # Preflight checks
 # ─────────────────────────────────────────────────────────────────────────────
 
-echo "=== Portolake E2E Test ==="
+echo "=== Iceberg Backend E2E Test (SQLite) ==="
 echo ""
 echo "  Catalog dir:    $CATALOG_DIR"
 echo "  GCS bucket:     $GCS_BUCKET"
 echo "  Raw data dir:   $RAW_DATA_DIR"
-echo "  Portolake dir:  $PORTOLAKE_DIR"
 echo "  Portolan CLI:   $PORTOLAN_CLI_DIR"
 echo ""
 
@@ -72,14 +70,14 @@ for col in "${GEOPARQUET_COLLECTIONS[@]}"; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 0: Install local portolan-cli (dev version) into portolake's venv
+# Step 0: Sync portolan-cli with iceberg extra
 # ─────────────────────────────────────────────────────────────────────────────
 
 echo "Step 0: Setting up environment..."
 
 # Guard against ~/.pyiceberg.yaml left over from BigLake tests.
 # If present with a non-SQLite catalog type, it overrides the local SQLite
-# defaults in portolake's create_catalog(), causing this test to silently
+# defaults in the iceberg backend's create_catalog(), causing this test to silently
 # talk to a remote REST catalog instead of creating a local iceberg.db.
 PYICEBERG_CONFIG="$HOME/.pyiceberg.yaml"
 PYICEBERG_BACKUP=""
@@ -96,24 +94,17 @@ restore_pyiceberg_config() {
 }
 trap restore_pyiceberg_config EXIT
 
-# Sync portolake dependencies first
-cd "$PORTOLAKE_DIR"
-uv sync --all-extras --quiet
+# Sync portolan-cli with iceberg extra
+cd "$PORTOLAN_CLI_DIR"
+uv sync --extra iceberg --quiet
 
-# Install local portolan-cli dev version (overrides PyPI release)
-uv pip install --project "$PORTOLAKE_DIR" -e "$PORTOLAN_CLI_DIR" --quiet
-
-# Verify plugin is discoverable
-BACKENDS=$($PYTHON -c "
-from importlib.metadata import entry_points
-eps = entry_points(group='portolan.backends')
-print(','.join(ep.name for ep in eps))
-")
-if [[ "$BACKENDS" != *"iceberg"* ]]; then
-    echo "FAIL: Iceberg backend not found in entry points (got: $BACKENDS)"
+# Verify iceberg backend is importable
+if $PYTHON -c "from portolan_cli.backends.iceberg import IcebergBackend" 2>/dev/null; then
+    echo "  OK: Iceberg backend importable"
+else
+    echo "FAIL: Iceberg backend not importable (is [iceberg] extra installed?)"
     exit 1
 fi
-echo "  OK: Iceberg backend discoverable"
 
 # Verify portolan-cli version has --backend flag
 if $PORTOLAN init --help 2>&1 | grep -q "\-\-backend"; then
