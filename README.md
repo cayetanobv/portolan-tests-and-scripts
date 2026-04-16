@@ -1,6 +1,6 @@
 # Portolan Tests and Scripts
 
-End-to-end tests and query scripts for [Portolan CLI](https://github.com/portolan-sdi/portolan-cli) and [Portolake](https://github.com/portolan-sdi/portolake).
+End-to-end tests and query scripts for [Portolan CLI](https://github.com/portolan-sdi/portolan-cli) (including its optional `[iceberg]` backend).
 
 ## Structure
 
@@ -23,7 +23,7 @@ test-catalogs/      Test catalog data (git-ignored, local only)
 
    | Variable | Description |
    | --- | --- |
-   | `BASE_DIR` | Path to the parent directory containing `portolan-cli` and `portolake` repos |
+   | `BASE_DIR` | Path to the parent directory containing the `portolan-cli` repo |
    | `GCS_BUCKET_PORTOLAN` | GCS bucket for the core portolan E2E test |
    | `GCS_BUCKET_PORTOLAKE_SQLITE` | GCS bucket for the SQLite-backend E2E test |
    | `GCS_BUCKET_PORTOLAKE_BIGLAKE` | GCS bucket for the BigLake E2E test |
@@ -44,8 +44,8 @@ test-catalogs/      Test catalog data (git-ignored, local only)
 | Script | Description |
 | --- | --- |
 | `test_e2e_portolan.sh` | Core portolan-cli workflow (init, add, push, pull) |
-| `test_e2e_portolake_biglake.sh` | Portolake with BigLake Metastore + GCS |
-| `test_e2e_portolake_sqlite.sh` | Portolake with local SQLite catalog |
+| `test_e2e_portolake_biglake.sh` | Iceberg backend with BigLake Metastore + GCS |
+| `test_e2e_portolake_sqlite.sh` | Iceberg backend with local SQLite catalog |
 
 ```bash
 # Run with defaults from .env
@@ -74,7 +74,7 @@ test-catalogs/      Test catalog data (git-ignored, local only)
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv) package manager
-- [Portolan CLI](https://github.com/portolan-sdi/portolan-cli) and [Portolake](https://github.com/portolan-sdi/portolake) checked out locally
+- [Portolan CLI](https://github.com/portolan-sdi/portolan-cli) checked out locally (install with `uv sync --extra iceberg` for Iceberg tests)
 - `gcloud` CLI authenticated (`gcloud auth login` + `application-default login`)
 - For BigLake tests: GCP project with BigLake API enabled
 - For DuckDB tests: DuckDB CLI >= 1.5.0 with iceberg, httpfs, and spatial extensions
