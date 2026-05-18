@@ -122,18 +122,13 @@ echo "→ Copying raw data into collection directories..."
 for collection_dir in "$RAW_DATA_DIR"/*/; do
     collection=$(basename "$collection_dir")
 
-    # FIXME: FileGDB (fire) has upstream issues — skip for now
-    # Skip large datasets (osm, counties) to reduce test runtime
-    if [[ "$collection" == "fire" || "$collection" == "osm" || "$collection" == "counties" ]]; then
-        echo "  ⚠ Skipping $collection (large dataset or upstream issue)"
-        continue
-    fi
-
     mkdir -p "$CATALOG_DIR/$collection"
 
-    # Copy files into collection dir.
-    # Raster files (TIF) need a subdirectory — portolan add requires
-    # files to be inside an item folder within the collection.
+    # Copy files into the collection directory. Raster (TIF) files go in
+    # an item subdirectory because, per ADR-0028 (Track ALL files in item
+    # directories as assets), `portolan add` registers rasters as items
+    # — their directory becomes the item folder, and other files in it
+    # are picked up as companion assets.
     for file in "$collection_dir"*; do
         # Skip directories (e.g. extracted shapefiles)
         [ -d "$file" ] && continue
@@ -143,7 +138,6 @@ for collection_dir in "$RAW_DATA_DIR"/*/; do
             echo "  → Extracting $filename into $collection/"
             unzip -qo "$file" -d "$CATALOG_DIR/$collection/"
         elif [[ "$file" == *.tif || "$file" == *.tiff ]]; then
-            # Raster: put in item subdirectory (required by portolan add)
             item_name="${filename%.*}"
             mkdir -p "$CATALOG_DIR/$collection/$item_name"
             cp "$file" "$CATALOG_DIR/$collection/$item_name/"

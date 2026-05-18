@@ -5,7 +5,7 @@
 # → verify push is blocked → verify versions via backend.
 #
 # Uses only geoparquet-compatible raw data (parquet, geojson).
-# Skips raster (elevation/tif) and FileGDB (fire) data.
+# Skips raster (elevation/tif) data.
 #
 # Usage:
 #   ./test_e2e_portolake.sh
@@ -40,7 +40,7 @@ PORTOLAN_CLI_DIR="$BASE_DIR/portolan-cli"
 PORTOLAN="uv run --project $PORTOLAN_CLI_DIR portolan"
 PYTHON="uv run --project $PORTOLAN_CLI_DIR python3"
 
-# Only geoparquet-compatible collections (skip elevation/tif, fire/FileGDB)
+# Only geoparquet-compatible collections (skip elevation/tif)
 GEOPARQUET_COLLECTIONS=("agriculture" "boundaries")
 
 ERRORS=0
