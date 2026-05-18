@@ -272,7 +272,8 @@ echo ""
 echo "Step 6: Initializing catalog with --backend iceberg and remote..."
 cd "$CATALOG_DIR"
 $PORTOLAN init --auto --backend iceberg
-$PORTOLAN config set remote "$GCS_BUCKET"
+# Configure remote via .env (sensitive settings can't be stored in config.yaml; see portolan-cli #359)
+echo "PORTOLAN_REMOTE=$GCS_BUCKET" > "$CATALOG_DIR/.env"
 echo ""
 
 # Verify backend config
@@ -283,10 +284,10 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-if grep -q "remote:" "$CATALOG_DIR/.portolan/config.yaml" 2>/dev/null; then
-    echo "  OK: config.yaml has remote configured"
+if grep -q "^PORTOLAN_REMOTE=" "$CATALOG_DIR/.env" 2>/dev/null; then
+    echo "  OK: .env has remote configured"
 else
-    echo "  FAIL: config.yaml missing 'remote' setting"
+    echo "  FAIL: .env missing PORTOLAN_REMOTE setting"
     ERRORS=$((ERRORS + 1))
 fi
 echo ""

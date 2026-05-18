@@ -563,9 +563,9 @@ if ! gcloud storage ls "gs://$BUCKET_NAME" &>/dev/null; then
 else
     gcloud storage rm -r "gs://$BUCKET_NAME/**" 2>/dev/null || true
 
-    # Configure remote
-    $PORTOLAN config set remote "$GCS_BUCKET"
-    echo "  OK: Configured remote=$GCS_BUCKET"
+    # Configure remote via .env (sensitive settings can't be stored in config.yaml; see portolan-cli #359)
+    echo "PORTOLAN_REMOTE=$GCS_BUCKET" > "$CATALOG_DIR/.env"
+    echo "  OK: Configured remote=$GCS_BUCKET (via .env)"
 
     # Create a new top-level collection for the remote test
     # (avoid nested dirs which create invalid collection names)
