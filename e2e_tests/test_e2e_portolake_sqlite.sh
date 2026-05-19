@@ -577,10 +577,13 @@ else
     if $PORTOLAN add "$REMOTE_TEST_COL/"; then
         echo "  OK: Add with remote upload succeeded"
 
-        # Verify files were uploaded
-        GCS_FILES=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | head -20)
+        # Verify files were uploaded.
+        # `|| true` keeps the script alive under `set -euo pipefail` when
+        # gcloud exits non-zero (empty bucket, transient list error, etc.)
+        # — the empty-string case is handled by the if-check below.
+        GCS_FILES=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | head -20 || true)
         if [ -n "$GCS_FILES" ]; then
-            TOTAL=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | wc -l)
+            TOTAL=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | wc -l || echo 0)
             echo "  OK: $TOTAL file(s) uploaded to GCS"
 
             if echo "$GCS_FILES" | grep -q "catalog.json"; then

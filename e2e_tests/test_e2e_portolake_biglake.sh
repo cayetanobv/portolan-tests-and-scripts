@@ -555,12 +555,15 @@ echo ""
 # -----------------------------------------------------------------------------
 
 echo "Step 14: Verifying data files uploaded to GCS..."
-GCS_FILES=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | head -40)
+# `|| true` keeps the script alive under `set -euo pipefail` when gcloud
+# exits non-zero (empty bucket, transient list error, etc.) — the
+# empty-string case is handled by the if-check below.
+GCS_FILES=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | head -40 || true)
 if [ -n "$GCS_FILES" ]; then
     echo "$GCS_FILES" | while IFS= read -r line; do
         echo "  $line"
     done
-    TOTAL=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | wc -l)
+    TOTAL=$(gcloud storage ls -r "$GCS_BUCKET/**" 2>/dev/null | wc -l || echo 0)
     echo "  OK: $TOTAL file(s) on GCS"
 
     # Verify STAC metadata was uploaded
